@@ -34,4 +34,11 @@ urlpatterns = [
             namespace="integration_apis",
         ),
     ),
+    path(
+        "api/",
+        include(
+            ("apps.trade.api_urls", "trade_apis"),
+            namespace="trade_apis",
+        ),
+    ),
 ]

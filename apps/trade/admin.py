@@ -1,5 +1,8 @@
+from typing import Any
+
 from adminsortable2.admin import SortableAdminMixin, SortableTabularInline
 from django.contrib import admin
+from django.http.request import HttpRequest
 from django.utils import timezone
 from import_export.admin import ImportExportModelAdmin
 from rangefilter.filters import DateRangeFilterBuilder
@@ -23,6 +26,16 @@ class DeployedOptionStrategyUserAdmin(SortableTabularInline):
 class DeployedOptionStrategyParametersAdmin(admin.TabularInline):
     model = DeployedOptionStrategyParameters
     extra = 0
+    can_delete = False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_add_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
 
 
 class OptionStrategyAdmin(admin.ModelAdmin):
@@ -30,6 +43,23 @@ class OptionStrategyAdmin(admin.ModelAdmin):
         "name",
         "file_name",
     )
+
+    def has_add_permission(self, request: HttpRequest) -> bool:
+        return False
+
+    def has_delete_permission(
+        self,
+        request: HttpRequest,
+        obj: OptionStrategy = None,
+    ) -> bool:
+        return False
+
+    def has_change_permission(
+        self,
+        request: HttpRequest,
+        obj: OptionStrategy = None,
+    ) -> bool:
+        return False
 
 
 class DeployedOptionStrategyAdmin(SortableAdminMixin, admin.ModelAdmin):
@@ -40,10 +70,33 @@ class DeployedOptionStrategyAdmin(SortableAdminMixin, admin.ModelAdmin):
         "is_active",
     )
 
+    readonly_fields = (
+        "strategy_name",
+        "strategy",
+        "instrument",
+        "lot_size",
+        "options",
+        "broker",
+        "strategy_type",
+        "hedge_strategy",
+        "websocket_ids",
+        "slippage",
+        "is_active",
+        "is_hedge",
+    )
+
     inlines = (
         DeployedOptionStrategyParametersAdmin,
         DeployedOptionStrategyUserAdmin,
     )
+
+    def has_add_permission(self, request: HttpRequest) -> bool:
+        return False
+
+    def has_delete_permission(
+        self, request: HttpRequest, obj: Any | None = ...
+    ) -> bool:
+        return False
 
 
 class DummyOrderAdmin(ImportExportModelAdmin, admin.ModelAdmin):
