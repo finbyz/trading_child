@@ -1,8 +1,10 @@
 from django.urls import path
 
 from apps.trade.api_views import (
+    ExitAlgoView,
     SaveDeployedOptionStrategyView,
     SaveOptionStrategiesView,
+    StartAlgoView,
 )
 
 urlpatterns = [
@@ -16,4 +18,6 @@ urlpatterns = [
         SaveDeployedOptionStrategyView.as_view(),
         name="save_deployed_option_strategy",
     ),
+    path("start_algo", StartAlgoView.as_view(), name="start_algo"),
+    path("exit_algo", ExitAlgoView.as_view(), name="exit_algo"),
 ]

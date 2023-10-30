@@ -13,7 +13,7 @@ from apps.trade.strategies.short_long_straddle_strangle import (
 
 
 # Straddle Strangle Strategy - Entry
-async def entry_straddle_strangle(strategy_name):
+async def entry_straddle_strangle(strategy_name, tradingsymbols):
     try:
         opt_strategy = DeployedOptionStrategyModel.objects.get(
             strategy_name=strategy_name
@@ -28,7 +28,7 @@ async def entry_straddle_strangle(strategy_name):
             )
 
             del opt_strategy
-            await strategy.place_entry_order()
+            await strategy.place_entry_order(tradingsymbols)
     except Exception as e:
         traceback.print_exc()
 

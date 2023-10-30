@@ -31,16 +31,7 @@
     </div>
 
     <div class="row">
-        <div class="col-12 text-end">
-            <span>
-                <button type="button" class="btn btn-success m-1" @click="startAlgo()">
-                    Start Algo
-                </button>
-                <button type="button" class="btn btn-danger m-1" @click="ExitAlgo()">
-                    Exit Algo
-                </button>
-            </span>
-        </div>
+        
     </div>
 
     <div class="row">
@@ -404,54 +395,6 @@
                     redirect: "follow",
                 };
 
-                fetch(url, requestOptions)
-                    .then((response) => response.text())
-                    .then((result) => console.log(result))
-                    .catch((error) => console.log("error", error));
-            },
-            startAlgo() {
-                let url =
-                    window.location.protocol +
-                    "//" +
-                    window.location.host +
-                    "{% url 'trade:start_algo' %}";
-                
-                var myHeaders = new Headers();
-                myHeaders.append("Content-Type", "application/json");
-                myHeaders.append("X-CSRFToken", "{{csrf_token}}");
-                var raw = JSON.stringify({
-                    strategy: "{{ object.pk }}",
-                });
-                var requestOptions = {
-                    method: "POST",
-                    headers: myHeaders,
-                    body: raw,
-                    redirect: "follow",
-                };
-                fetch(url, requestOptions)
-                    .then((response) => response.text())
-                    .then((result) => console.log(result))
-                    .catch((error) => console.log("error", error));
-            },
-            ExitAlgo() {
-                let url =
-                    window.location.protocol +
-                    "//" +
-                    window.location.host +
-                    "{% url 'trade:exit_algo' %}";
-                
-                var myHeaders = new Headers();
-                myHeaders.append("Content-Type", "application/json");
-                myHeaders.append("X-CSRFToken", "{{csrf_token}}");
-                var raw = JSON.stringify({
-                    strategy: "{{ object.pk }}",
-                });
-                var requestOptions = {
-                    method: "POST",
-                    headers: myHeaders,
-                    body: raw,
-                    redirect: "follow",
-                };
                 fetch(url, requestOptions)
                     .then((response) => response.text())
                     .then((result) => console.log(result))

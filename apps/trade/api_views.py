@@ -59,36 +59,6 @@ class AdjustPosition(APIView):
         return Response({"message": "success"})
 
 
-class StartAlgo(APIView):
-    permission_classes = (IsAuthenticated,)
-
-    def post(self, request, format=None):
-        row = request.data
-
-        strategy = row["strategy"]
-        opt_strategy = DeployedOptionStrategyModel.objects.filter(pk=strategy).first()
-
-        if opt_strategy.strategy.strategy_type == "single_straddle_strangle":
-            async_to_sync(entry_straddle_strangle)(opt_strategy.strategy_name)
-
-        return Response({"message": "success"})
-
-
-class ExitAlgo(APIView):
-    permission_classes = (IsAuthenticated,)
-
-    def post(self, request, format=None):
-        row = request.data
-
-        strategy = row["strategy"]
-        opt_strategy = DeployedOptionStrategyModel.objects.filter(pk=strategy).first()
-
-        if opt_strategy.strategy.strategy_type == "single_straddle_strangle":
-            async_to_sync(exit_straddle_strangle)(opt_strategy.strategy_name)
-
-        return Response({"message": "success"})
-
-
 class RebalanceView(APIView):
     permission_classes = (IsAuthenticated,)
 
@@ -408,3 +378,33 @@ class SaveDeployedOptionStrategyView(APIView):
 
     def put(self, request, format=None):
         return self.save_deployed_option_strategy(request.data)
+
+
+class StartAlgoView(APIView):
+    permission_classes = (IsAuthenticated,)
+
+    def post(self, request, format=None):
+        row = request.data
+
+        opt_strategy = DeployedOptionStrategyModel.objects.filter(pk=row["pk"]).first()
+
+        if opt_strategy.strategy.strategy_type == "single_straddle_strangle":
+            async_to_sync(entry_straddle_strangle)(
+                opt_strategy.strategy_name, row["tradingsymbols"]
+            )
+
+        return Response({"message": "success"})
+
+
+class ExitAlgoView(APIView):
+    permission_classes = (IsAuthenticated,)
+
+    def post(self, request, format=None):
+        row = request.data
+
+        opt_strategy = DeployedOptionStrategyModel.objects.filter(pk=row["pk"]).first()
+
+        if opt_strategy.strategy.strategy_type == "single_straddle_strangle":
+            async_to_sync(exit_straddle_strangle)(opt_strategy.strategy_name)
+
+        return Response({"message": "success"})
