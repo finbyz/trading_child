@@ -1,0 +1,178 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container-fluid mt-3 mt-md-5" id="app">
+  <div class="row">
+    <div class="col-md-2 col-12">
+      <div class="form-outline">
+        <label for="username">SELECT USERNAME:</label>
+        <select id="username" class="form-select" @change="onChange()">
+          <option value="">Select Username</option>
+          {% for user in user_list %}
+            <option value="{{ user }}">{{ user }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+    <div class="col-md-2 col-12">
+      <div class="form-outline">
+        <label for="fromdate">From Date:</label>
+        <input type="date" class="form-control" id="from_date" placeholder="From Date" @change="onChange()">
+      </div>
+    </div>
+    <div class="col-md-2 col-12">
+      <div class="form-outline">
+        <label for="to_date">To Date:</label>
+        <input type="date" class="form-control" id="to_date" placeholder="From Date" @change="onChange()">
+      </div>
+    </div>
+    <div class="col-12">
+      <div class="table-responsive">
+        <table class="table table-striped table-hover">
+          <thead>
+            <tr>
+                <th class="text-start">DATE</th>
+                <th class="text-end">INITIAL MARGIN</th>
+                <th class="text-end">GROSS PNL</th>
+                <th class="text-end">CHARGES</th>
+                <th class="text-end">NET PNL</th>
+                <th class="text-end">PNL%</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="data in data">
+              <td class="text-start">[[data.date]]</td>
+              <td class="text-end">[[formatCurrency(data.initial_margin)]]</td>
+              <td :class="[[ stylePnl(data.gross_pnl) ]]" class="text-end">
+                [[formatCurrency(data.gross_pnl, 2)]]
+              </td>
+              <td class="text-end">[[formatCurrency(data.charges, 2)]]</td>
+              <td :class="[[ stylePnl(data.net_pnl) ]]" class="text-end">
+                [[formatCurrency(data.net_pnl, 2)]]
+              </td>
+              <td :class="[[ stylePnl(data.net_pnl) ]]" class="text-end">
+                [[formatNumber(data.net_percentage * 100, 2)]]%
+              </td>
+            </tr>
+            <tr>
+              <td class="text-start">TOTAL</td>
+              <td></td>
+              <td :class="[[ stylePnl(total_gross_pnl) ]]" class="text-end">[[formatCurrency(total_gross_pnl)]]</td>
+              <td class="text-end">[[formatCurrency(total_charges)]]</td>
+              <td :class="[[ stylePnl(total_net_pnl) ]]" class="text-end">[[formatCurrency(total_net_pnl)]]</td>
+              <td :class="[[ stylePnl(total_net_percentage) ]]" class="text-end">[[formatNumber(total_net_percentage * 100, 2)]]%</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock content %} {% block custom_script %}
+<script>
+    const { createApp } = Vue;
+
+    createApp({
+        delimiters: ["[[", "]]"],
+        data() {
+            return {
+                data: [],
+                total_gross_pnl: 0,
+                total_net_pnl: 0,
+                total_net_percentage: 0,
+                total_charges: 0,
+            };
+        },
+        mounted: function () {
+            this.defaultDates()
+        },
+        methods: {
+            formatDate(date) {
+                var d = new Date(date),
+                month = '' + (d.getMonth() + 1),
+                day = '' + d.getDate(),
+                year = d.getFullYear();
+
+                if (month.length < 2) 
+                    month = '0' + month;
+                if (day.length < 2) 
+                    day = '0' + day;
+
+                return [year, month, day].join('-');
+            },
+            defaultDates(){
+                var date = new Date();
+                var firstDay = new Date(date.getFullYear(), date.getMonth(), 1);
+                var lastDay = new Date(date.getFullYear(), date.getMonth() + 1, 0);
+                document.getElementById("from_date").defaultValue = this.formatDate(firstDay);
+                document.getElementById("to_date").defaultValue = this.formatDate(lastDay);
+            },
+            onChange() {
+                var username = document.getElementById('username').value;
+                var from_date = document.getElementById('from_date').value;
+                var to_date = document.getElementById('to_date').value;
+
+
+                this.getPnl(username, from_date, to_date);
+            },
+            formatNumber(num) {
+                return parseFloat(num).toFixed(2);
+            },
+            formatCurrency(num, fraction=0) {
+                return parseFloat(num).toLocaleString('en-US', {
+                style: 'currency',
+                currency: 'INR',
+                maximumFractionDigits: fraction,
+                minimumFractionDigits: fraction,
+                });
+            },
+            stylePnl(num) {
+                if (num < 0) {
+                    return "text-danger";
+                } else {
+                    return "text-success";
+                }
+            },
+            async getPnl(username, from_date, to_date){
+                let url =
+                    window.location.protocol +
+                    "//" +
+                    window.location.host +
+                    "{% url 'trade:daily_pnl_api' %}";
+        
+                raw = JSON.stringify({
+                    username: username,
+                    from_date: from_date,
+                    to_date: to_date,
+                });
+
+                var myHeaders = new Headers();
+                myHeaders.append("Content-Type", "application/json");
+                myHeaders.append("X-CSRFToken", "{{csrf_token}}");
+
+                var requestOptions = {
+                    method: "POST",
+                    headers: myHeaders,
+                    body: raw,
+                    redirect: "follow",
+                };
+                await fetch(url, requestOptions)
+                    .then(response => response.json().then(data => (this.data = data['data'])))
+                    .catch((error) => console.log("error", error));
+      
+                this.total_gross_pnl = 0
+                this.total_net_pnl = 0
+                this.total_charges = 0
+                this.total_net_percentage = 0
+
+                for (const x in this.data) {
+                    this.total_gross_pnl = this.data[x].gross_pnl + this.total_gross_pnl
+                    this.total_net_pnl = this.data[x].net_pnl + this.total_net_pnl
+                    this.total_charges = this.data[x].charges + this.total_charges
+                    this.total_net_percentage = this.data[x].net_percentage + this.total_net_percentage
+                }
+            }
+        },
+    }).mount("#app");
+</script>
+{% endblock custom_script %}

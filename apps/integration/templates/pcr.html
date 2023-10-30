@@ -1,0 +1,177 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container-fluid mt-3 mt-md-5" id="app">
+  <div class="row">
+    <div class="col-md-3 col-12">
+      <div class="form-outline">
+        <label for="no_of_symbols">No of Symbols</label>
+        <input type="number" class="form-control" id="no_of_symbols" placeholder="No of Symbols:" @change="onChange()" value="100">
+      </div>
+    </div>
+    <div class="col-md-3 col-12">
+      <div class="form-outline">
+        <label for="no_of_symbols">Difference Sub</label>
+        <input type="number" class="form-control" id="diff_sub" placeholder="No of Symbols:" @change="onChange()" value="6">
+      </div>
+    </div>
+    <div class="col-md-3 col-12">
+      <div class="form-outline">
+        <label for="no_of_symbols">Difference Sup</label>
+        <input type="number" class="form-control" id="diff_sup" placeholder="No of Symbols:" @change="onChange()" value="3">
+      </div>
+    </div>
+    <div class="col-md-3 col-12">
+      <div class="form-check-outline">
+          <br>
+          <input class="btn-check" type="checkbox" id="all_data" @change="onChange()" autocomplete="off">
+          <label class="btn btn-danger" for="all_data">
+            All Data
+          </label>
+      </div>
+    </div>
+  </div>
+  <div class="row mt-3">
+    <div class="col-12">
+      <div class="table-responsive">
+        <table class="table table-striped table-hover">
+          <thead>
+            <tr>
+              <th>TIME</th>
+              <th>PE OI</th>
+              <th>CE OI</th>
+              <th>PCR</th>
+              <th>PE C</th>
+              <th>CE C</th>
+              <th>PE-CE</th>
+              <th>PE-CE U</th>
+              <th>CE A</th>
+              <th>PE A</th>
+              <th>PE / CE</th>
+              <th>STRIKE</th>
+              <th>PE IV</th>
+              <th>CE IV</th>
+              <th>T IV</th>
+              <th>PE P</th>
+              <th>CE P</th>
+              <th>T P</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="data in pnl_data">
+              <td>[[getTime(data.timestamp)]]</td>
+              <td class="text-danger">[[formatNumber(data.pe_total_oi / 1000000)]]</td>
+              <td class="text-success">[[formatNumber(data.ce_total_oi / 1000000)]]</td>
+              <td>[[formatNumber(data.pcr)]]</td>
+              <td class="text-danger">[[formatNumber(data.pe_oi_change_sub *
+                100)]]<sup>[[formatNumber(data.pe_oi_change_sup * 100)]]</sup></td>
+              <td class="text-success">[[formatNumber(data.ce_oi_change_sub *
+                100)]]<sup>[[formatNumber(data.ce_oi_change_sup * 100)]]</sup></td>
+              <td><span :class="[[ stylePnl(-data.ce_minus_pe_oi_change_sub) ]]">[[formatNumber(-data.ce_minus_pe_oi_change_sub *
+                  100)]]</span><sup><span
+                    :class="[[ stylePnl(-data.ce_minus_pe_oi_change_sup) ]]">[[formatNumber(-data.ce_minus_pe_oi_change_sup *
+                    100)]]</span></sup></td>
+              <td><span :class="[[ stylePnl(-data.ce_minus_pe_oi_change_sub_update) ]]">[[formatNumber(-data.ce_minus_pe_oi_change_sub_update *
+                100)]]</span><sup><span
+                  :class="[[ stylePnl(-data.ce_minus_pe_oi_change_sup_update) ]]">[[formatNumber(-data.ce_minus_pe_oi_change_sup_update *
+                  100)]]</span></sup></td>
+              <td>[[data.ce_oi_abs_change_sub]]</td>
+              <td>[[data.pe_oi_abs_change_sub]]</td>
+              <td>[[formatNumber(data.pe_by_ce_oi_abs_change_sub)]]</td>
+              <td>[[data.strike]]</td>
+              <td class="text-danger">[[formatNumber(data.pe_iv * 100)]]</td>
+              <td class="text-success">[[formatNumber(data.ce_iv * 100)]]</td>
+              <td>[[formatNumber(data.total_iv * 100)]]</td>
+              <td class="text-danger">[[formatNumber(data.pe_premium)]]</td>
+              <td class="text-success">[[formatNumber(data.ce_premium)]]</td>
+              <td>[[formatNumber(data.total_premium)]]</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock content %} {% block custom_script %}
+<script>
+  const { createApp } = Vue;
+
+  createApp({
+    delimiters: ["[[", "]]"],
+    data() {
+      return {
+        pnl_data: [],
+      };
+    },
+    mounted: function () {
+      this.webSocketConnect();
+    },
+    methods: {
+      async webSocketConnect() {
+        var option_instrument = "{{ option_instrument }}";
+        var websocket_id = "{{ websocket_id }}";
+        var no_of_symbols = document.getElementById('no_of_symbols').value;
+        var all_data = document.getElementById('all_data').checked;
+        var diff_sub = document.getElementById('diff_sub').value;
+        var diff_sup = document.getElementById('diff_sup').value;
+
+        let ws_scheme = window.location.protocol == "https:" ? "wss://" : "ws://";
+        this.ws = new WebSocket(
+          ws_scheme + window.location.host + "/ws/pcr/"
+        );
+        this.ws.onopen = () => this.ws.send(JSON.stringify({
+          "option_instrument": option_instrument,
+          "websocket_id": websocket_id,
+          "all_data": all_data,
+          "no_of_symbols": no_of_symbols,
+          "diff_sub": diff_sub,
+          "diff_sup": diff_sup,
+        }))
+
+        this.ws.onmessage = (event) => {
+          this.pnl_data = JSON.parse(event.data)['data'];
+        };
+
+        this.ws.onclose = (event) => {
+          var now = moment();
+          var today1530 = moment('15:30','HH:mm');
+
+          if (event.code === 1000){}
+          else if(now < today1530){
+            setTimeout(() => {
+              this.webSocketConnect();
+            }, 1000);
+          }
+        }
+
+        this.ws.onerror = (event) => {
+          setTimeout(() => {
+            this.webSocketConnect();
+          }, 1000);
+        }
+      },
+      async closeWs() {
+        this.ws.close();
+      },
+      async onChange() {
+        await this.closeWs();
+        await this.webSocketConnect();
+      },
+      formatNumber(num) {
+        return parseFloat(num).toFixed(2);
+      },
+      stylePnl(num) {
+        if (num < 0) {
+          return "text-danger";
+        } else {
+          return "text-success";
+        }
+      },
+      getTime(timestamp) {
+        var timestamp = new Date(timestamp);
+        return timestamp.toLocaleTimeString('it-IT');
+      }
+    },
+  }).mount("#app");
+</script>
+{% endblock custom_script %}

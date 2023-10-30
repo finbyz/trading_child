@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+
+    <title>{{ title }}</title>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css" rel="stylesheet" />
+    <link rel="stylesheet" href="/static/css/style.css">
+
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+
+    {% block custom_style %}{% endblock custom_style %}
+
+    <style>
+        .dropdown:hover .dropdown-menu {
+            display: block;
+            margin-top: 0;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="tostContainer" style="position: fixed; bottom: 10px; right: 10px;">
+    </div>
+
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container">
+            <a class="navbar-brand" href="{% url 'master:home' %}">FinByz</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse"
+                data-bs-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false"
+                aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarSupportedContent">
+                <ul class="navbar-nav ms-auto mb-2 mb-lg-0">
+                    {% if user.is_authenticated %}
+                    {% if dynamic_backtest_link %}
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle {% if request.resolver_match.url_name == 'deployed_strategy' %}active{% endif %}"" href="
+                            #" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            DOS
+                        </a>
+                        <ul class="dropdown-menu">
+                            {% for row in dynamic_backtest_link %}
+                            <li><a class="dropdown-item" href="{{ row.get_absolute_url }}">{{ row.strategy_name }}</a>
+                            </li>
+                            {% endfor %}
+                        </ul>
+                    </li>
+                    {% endif %}
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle {% if request.resolver_match.url_name == 'pcr' %}active{% endif %}"
+                            href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            PCR
+                        </a>
+                        <ul class="dropdown-menu">
+                            {% for row in pcr_view_navbar %}
+                            <li><a class="dropdown-item" href="{% url 'integration:pcr' option_instrument=row.1 websocket_id=row.0 %}">{{ row.0 }} - {{ row.1 }}</a></li>
+                            {% endfor %}
+                        </ul>
+                    </li>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle {% if request.resolver_match.url_name == 'pcr' %}active{% endif %}"
+                            href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            Reports
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="{% url 'trade:daily_pnl' %}">Daily User Pnl</a></li>
+                            <li><a class="dropdown-item" href="#">User Pnl</a></li>
+                            <li><a class="dropdown-item" href="#">User Positions</a></li>
+                        </ul>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.resolver_match.url_name == 'celery_task' %}active{% endif %}" href="{% url 'master:celery_task' %}">Celery Task</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'master:logout' %}">Log out</a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    {% block content %}{% endblock content %}
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/moment.min.js"></script>
+    <script>
+        const myAudioContext = new AudioContext();
+        window.counter = 0;
+
+        function beep(duration, frequency, volume) {
+            return new Promise((resolve, reject) => {
+                // Set default duration if not provided
+                duration = duration || 200;
+                frequency = frequency || 440;
+                volume = volume || 100;
+
+                try {
+                    let oscillatorNode = myAudioContext.createOscillator();
+                    let gainNode = myAudioContext.createGain();
+                    oscillatorNode.connect(gainNode);
+
+                    // Set the oscillator frequency in hertz
+                    oscillatorNode.frequency.value = frequency;
+
+                    // Set the type of oscillator
+                    oscillatorNode.type = "square";
+                    gainNode.connect(myAudioContext.destination);
+
+                    // Set the gain to the volume
+                    gainNode.gain.value = volume * 0.01;
+
+                    // Start audio with the desired duration
+                    oscillatorNode.start(myAudioContext.currentTime);
+                    oscillatorNode.stop(myAudioContext.currentTime + duration * 0.001);
+
+                    // Resolve the promise when the sound is finished
+                    oscillatorNode.onended = () => {
+                        resolve();
+                    };
+                } catch (error) {
+                    reject(error);
+                }
+            });
+        }
+
+        function sleep(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+
+        async function playNotification() {
+            for (let i = 0; i < 20; i++) {
+                beep(200, 440, 100);
+                await sleep(1000);
+            }
+        }
+
+        function readNotification() {
+            {% if user.is_authenticated %}
+
+            let ws_scheme = window.location.protocol == "https:" ? "wss://" : "ws://";
+
+            let ws = new WebSocket(
+                ws_scheme + window.location.host + "/ws/read_notifications"
+            );
+
+            ws.onmessage = (event) => {
+                var id = 'tost_message_' + (++window.counter);
+                var message = JSON.parse(event.data);
+                console.log(message)
+                var i = document.getElementById('tostContainer');
+                var data = `
+          <div id="${id}" class="alert ${message.class} alert-dismissible fade show" role="alert">
+            <strong>${message.title}</strong> ${message.description}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+          </div>
+        `
+                i.innerHTML += data;
+
+                setTimeout(function () { hideTostMessage(id) }, 10000);
+            };
+
+            ws.onclose = (event) => {
+                var now = moment();
+                var today1530 = moment('15:30', 'HH:mm');
+
+                if (event.code === 1000) { }
+                else {
+                    setTimeout(() => {
+                        this.readNotification();
+                    }, 1000);
+                }
+            }
+
+            ws.onerror = (event) => {
+                setTimeout(() => {
+                    this.readNotification();
+                }, 1000);
+            }
+            {% endif %}
+        }
+
+        function alertNotifications() {
+            {% if user.is_authenticated %}
+            let ws_scheme = window.location.protocol == "https:" ? "wss://" : "ws://";
+
+            let alert_ws = new WebSocket(
+                ws_scheme + window.location.host + "/ws/alert_notifications"
+            );
+
+            alert_ws.onmessage = (event) => {
+                var id = 'tost_message_' + (++window.counter);
+                var message = JSON.parse(event.data);
+                console.log(message)
+                var i = document.getElementById('tostContainer');
+                var data = `
+          <div id="${id}" class="alert ${message.class} alert-dismissible fade show" role="alert">
+            <strong>${message.title}</strong> ${message.description}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+          </div>
+        `
+                i.innerHTML += data;
+
+                playNotification()
+            }
+
+            alert_ws.onclose = (event) => {
+                var now = moment();
+                var today1530 = moment('15:30', 'HH:mm');
+
+                if (event.code === 1000) { }
+                else {
+                    setTimeout(() => {
+                        this.alertNotifications();
+                    }, 1000);
+                }
+            }
+
+            alert_ws.onerror = (event) => {
+                setTimeout(() => {
+                    this.alertNotifications();
+                }, 1000);
+            }
+            {% endif %}
+
+        }
+
+        function hideTostMessage(id) {
+            document.getElementById(id).classList.remove("fade");
+            document.getElementById(id).classList.remove("show");
+            document.getElementById(id).classList.add("hide");
+            document.getElementById(id).outerHTML = "";
+        }
+
+        window.onload = function () {
+            // readNotification();
+            // alertNotifications();
+        };
+    </script>
+    {% block custom_script %}{% endblock custom_script %}
+</body>
+
+</html>
