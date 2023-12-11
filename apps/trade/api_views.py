@@ -1,4 +1,5 @@
 from asgiref.sync import async_to_sync
+from django.core.cache import cache
 from django_pandas.io import read_frame
 from rest_framework.authentication import SessionAuthentication, TokenAuthentication
 from rest_framework.permissions import IsAdminUser, IsAuthenticated
@@ -7,14 +8,8 @@ from rest_framework.views import APIView
 
 from apps.integration.models import Spot as SpotModel
 from apps.trade.deploy_strategy import (
-    entry_straddle_strangle,
-    exit_one_side_delta_management_strategy,
-    exit_straddle_strangle,
-    one_side_exit_hold_delta_management_strategy,
-    rebalance_delta_management_strategy,
-    reentry_one_side_delta_management_strategy,
-    release_one_side_exit_hold_delta_management_strategy,
-    shift_single_strike_delta_management_strategy,
+    place_entry_order,
+    place_exit_order,
     update_strategy_quantity,
     update_strategy_quantity_percentage,
     users_entry_delta_management_strategy,
@@ -55,123 +50,6 @@ class AdjustPosition(APIView):
             broker=opt_strategy.broker,
             websocket_ids=opt_strategy.websocket_ids.split(","),
         )
-
-        return Response({"message": "success"})
-
-
-class RebalanceView(APIView):
-    permission_classes = (IsAuthenticated,)
-
-    def post(self, request, format=None):
-        row = request.data
-
-        strategy = row["strategy"]
-        opt_strategy = DeployedOptionStrategyModel.objects.filter(pk=strategy).first()
-
-        if opt_strategy.strategy.strategy_type == "delta_management":
-            idx = int(row["index"])
-
-            async_to_sync(rebalance_delta_management_strategy)(
-                opt_strategy.strategy_name, idx
-            )
-
-        return Response({"message": "success"})
-
-
-class ExitOneSide(APIView):
-    permission_classes = (IsAuthenticated,)
-
-    def post(self, request, format=None):
-        row = request.data
-
-        strategy = row["strategy"]
-        opt_strategy = DeployedOptionStrategyModel.objects.filter(pk=strategy).first()
-
-        if opt_strategy.strategy.strategy_type == "delta_management":
-            idx = int(row["index"])
-            option_type = row["option_type"]
-
-            async_to_sync(exit_one_side_delta_management_strategy)(
-                opt_strategy.strategy_name, idx, option_type
-            )
-
-        return Response({"message": "success"})
-
-
-class ReentryOneSide(APIView):
-    permission_classes = (IsAuthenticated,)
-
-    def post(self, request, format=None):
-        row = request.data
-
-        strategy = row["strategy"]
-        opt_strategy = DeployedOptionStrategyModel.objects.filter(pk=strategy).first()
-
-        if opt_strategy.strategy.strategy_type == "delta_management":
-            idx = int(row["index"])
-
-            async_to_sync(reentry_one_side_delta_management_strategy)(
-                opt_strategy.strategy_name, idx
-            )
-
-        return Response({"message": "success"})
-
-
-class ShiftSingleStrike(APIView):
-    permission_classes = (IsAuthenticated,)
-
-    def post(self, request, format=None):
-        row = request.data
-
-        strategy = row["strategy"]
-        opt_strategy = DeployedOptionStrategyModel.objects.filter(pk=strategy).first()
-
-        if opt_strategy.strategy.strategy_type == "delta_management":
-            idx = int(row["index"])
-            option_type = row["option_type"]
-            points = row["points"]
-
-            async_to_sync(shift_single_strike_delta_management_strategy)(
-                opt_strategy.strategy_name, idx, option_type, points
-            )
-
-        return Response({"message": "success"})
-
-
-class OneSideExitHold(APIView):
-    permission_classes = (IsAuthenticated,)
-
-    def post(self, request, format=None):
-        row = request.data
-
-        strategy = row["strategy"]
-        opt_strategy = DeployedOptionStrategyModel.objects.filter(pk=strategy).first()
-
-        if opt_strategy.strategy.strategy_type == "delta_management":
-            idx = int(row["index"])
-
-            async_to_sync(one_side_exit_hold_delta_management_strategy)(
-                opt_strategy.strategy_name, idx
-            )
-
-        return Response({"message": "success"})
-
-
-class ReleaseOneSideExitHold(APIView):
-    permission_classes = (IsAuthenticated,)
-
-    def post(self, request, format=None):
-        row = request.data
-
-        strategy = row["strategy"]
-        opt_strategy = DeployedOptionStrategyModel.objects.filter(pk=strategy).first()
-
-        if opt_strategy.strategy.strategy_type == "delta_management":
-            idx = int(row["index"])
-
-            async_to_sync(release_one_side_exit_hold_delta_management_strategy)(
-                opt_strategy.strategy_name, idx
-            )
 
         return Response({"message": "success"})
 
@@ -373,6 +251,8 @@ class SaveDeployedOptionStrategyView(APIView):
             deployed_option_strategy_parameter.is_active = parameter["is_active"]
             deployed_option_strategy_parameter.save()
 
+        return Response({"message": "success"})
+
     def post(self, request, format=None):
         return self.save_deployed_option_strategy(request.data)
 
@@ -381,15 +261,19 @@ class SaveDeployedOptionStrategyView(APIView):
 
 
 class StartAlgoView(APIView):
-    permission_classes = (IsAuthenticated,)
+    authentication_classes = [SessionAuthentication, TokenAuthentication]
+    permission_classes = [IsAdminUser]
 
     def post(self, request, format=None):
         row = request.data
 
         opt_strategy = DeployedOptionStrategyModel.objects.filter(pk=row["pk"]).first()
 
-        if opt_strategy.strategy.strategy_type == "single_straddle_strangle":
-            async_to_sync(entry_straddle_strangle)(
+        if opt_strategy.strategy.strategy_type in [
+            "single_straddle_strangle",
+            "delta_management",
+        ]:
+            async_to_sync(place_entry_order)(
                 opt_strategy.strategy_name, row["tradingsymbols"]
             )
 
@@ -397,14 +281,34 @@ class StartAlgoView(APIView):
 
 
 class ExitAlgoView(APIView):
-    permission_classes = (IsAuthenticated,)
+    authentication_classes = [SessionAuthentication, TokenAuthentication]
+    permission_classes = [IsAdminUser]
 
     def post(self, request, format=None):
         row = request.data
 
         opt_strategy = DeployedOptionStrategyModel.objects.filter(pk=row["pk"]).first()
 
-        if opt_strategy.strategy.strategy_type == "single_straddle_strangle":
-            async_to_sync(exit_straddle_strangle)(opt_strategy.strategy_name)
+        if opt_strategy.strategy.strategy_type in [
+            "single_straddle_strangle",
+            "delta_management",
+        ]:
+            async_to_sync(place_exit_order)(opt_strategy.strategy_name)
 
         return Response({"message": "success"})
+
+
+class UpdateTradingSymbolsView(APIView):
+    authentication_classes = [SessionAuthentication, TokenAuthentication]
+    permission_classes = [IsAdminUser]
+
+    def post(self, request, format=None):
+        row = request.data
+        opt_strategy = DeployedOptionStrategyModel.objects.filter(pk=row["pk"]).first()
+        cache.set(f"TRADINGSYMBOLS_{row['pk']}", row["tradingsymbols"])
+
+        adjust_positions_task(
+            symbol=opt_strategy.instrument.symbol,
+            broker=opt_strategy.broker,
+            websocket_ids=opt_strategy.websocket_ids.split(","),
+        )

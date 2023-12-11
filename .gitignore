@@ -6,6 +6,10 @@ __pycache__
 db.sqlite3
 media
 
+#json file
+trade_report_json_data
+order_report_json_data
+
 # Backup files # 
 *.bak 
 

@@ -13,7 +13,7 @@ from apps.trade.strategies.short_long_straddle_strangle import (
 
 
 # Straddle Strangle Strategy - Entry
-async def entry_straddle_strangle(strategy_name, tradingsymbols):
+async def place_entry_order(strategy_name, tradingsymbols):
     try:
         opt_strategy = DeployedOptionStrategyModel.objects.get(
             strategy_name=strategy_name
@@ -34,7 +34,7 @@ async def entry_straddle_strangle(strategy_name, tradingsymbols):
 
 
 # Straddle Strangle Strategy - Exit
-async def exit_straddle_strangle(strategy_name):
+async def place_exit_order(strategy_name):
     try:
         opt_strategy = DeployedOptionStrategyModel.objects.get(
             strategy_name=strategy_name
@@ -71,159 +71,6 @@ async def run_delta_management_strategy(strategy_name):
             del opt_strategy
 
             await strategy.run()
-    except Exception as e:
-        traceback.print_exc()
-        # await send_alert_notifications(str(e), traceback.format_exc())
-
-
-async def shift_single_strike_delta_management_strategy(
-    strategy_name,
-    idx,
-    option_type,
-    points,
-):
-    try:
-        opt_strategy = DeployedOptionStrategyModel.objects.get(
-            strategy_name=strategy_name
-        )
-        Strategy = import_string(
-            f"apps.trade.strategies.{opt_strategy.strategy.file_name}.Strategy"
-        )
-
-        if opt_strategy.is_active:
-            strategy = Strategy(
-                strategy_id=opt_strategy.pk,
-            )
-
-            del opt_strategy
-
-            await strategy.manual_shift_single_strike(idx, option_type, points)
-    except Exception as e:
-        traceback.print_exc()
-        # await send_alert_notifications(str(e), traceback.format_exc())
-
-
-async def rebalance_delta_management_strategy(
-    strategy_name,
-    idx,
-):
-    try:
-        opt_strategy = DeployedOptionStrategyModel.objects.get(
-            strategy_name=strategy_name
-        )
-        Strategy = import_string(
-            f"apps.trade.strategies.{opt_strategy.strategy.file_name}.Strategy"
-        )
-
-        if opt_strategy.is_active:
-            strategy = Strategy(
-                strategy_id=opt_strategy.pk,
-            )
-
-            del opt_strategy
-
-            await strategy.manual_shifting(idx)
-    except Exception as e:
-        traceback.print_exc()
-        # await send_alert_notifications(str(e), traceback.format_exc())
-
-
-async def exit_one_side_delta_management_strategy(
-    strategy_name,
-    idx,
-    option_type,
-):
-    try:
-        opt_strategy = DeployedOptionStrategyModel.objects.get(
-            strategy_name=strategy_name
-        )
-        Strategy = import_string(
-            f"apps.trade.strategies.{opt_strategy.strategy.file_name}.Strategy"
-        )
-
-        if opt_strategy.is_active:
-            strategy = Strategy(
-                strategy_id=opt_strategy.pk,
-            )
-
-            del opt_strategy
-
-            await strategy.manual_exit(idx, option_type)
-    except Exception as e:
-        traceback.print_exc()
-        # await send_alert_notifications(str(e), traceback.format_exc())
-
-
-async def reentry_one_side_delta_management_strategy(
-    strategy_name,
-    idx,
-):
-    try:
-        opt_strategy = DeployedOptionStrategyModel.objects.get(
-            strategy_name=strategy_name
-        )
-        Strategy = import_string(
-            f"apps.trade.strategies.{opt_strategy.strategy.file_name}.Strategy"
-        )
-
-        if opt_strategy.is_active:
-            strategy = Strategy(
-                strategy_id=opt_strategy.pk,
-            )
-
-            del opt_strategy
-
-            await strategy.manual_reentry(idx)
-    except Exception as e:
-        traceback.print_exc()
-        # await send_alert_notifications(str(e), traceback.format_exc())
-
-
-async def release_one_side_exit_hold_delta_management_strategy(
-    strategy_name,
-    idx,
-):
-    try:
-        opt_strategy = DeployedOptionStrategyModel.objects.get(
-            strategy_name=strategy_name
-        )
-        Strategy = import_string(
-            f"apps.trade.strategies.{opt_strategy.strategy.file_name}.Strategy"
-        )
-
-        if opt_strategy.is_active:
-            strategy = Strategy(
-                strategy_id=opt_strategy.pk,
-            )
-
-            del opt_strategy
-
-            await strategy.release_one_side_exit_hold(idx)
-    except Exception as e:
-        traceback.print_exc()
-        # await send_alert_notifications(str(e), traceback.format_exc())
-
-
-async def one_side_exit_hold_delta_management_strategy(
-    strategy_name,
-    idx,
-):
-    try:
-        opt_strategy = DeployedOptionStrategyModel.objects.get(
-            strategy_name=strategy_name
-        )
-        Strategy = import_string(
-            f"apps.trade.strategies.{opt_strategy.strategy.file_name}.Strategy"
-        )
-
-        if opt_strategy.is_active:
-            strategy = Strategy(
-                strategy_id=opt_strategy.pk,
-            )
-
-            del opt_strategy
-
-            await strategy.one_side_exit_hold(idx)
     except Exception as e:
         traceback.print_exc()
         # await send_alert_notifications(str(e), traceback.format_exc())

@@ -1,10 +1,14 @@
 import asyncio
 import itertools
 import json
+import os
 import traceback
+from datetime import datetime
+from pathlib import Path
 
 import pandas as pd
 from aiohttp import ClientSession
+from django.conf import settings
 from django.utils import timezone
 
 from apps.integration.utils.operations import (
@@ -362,6 +366,14 @@ class KotakNeoApi(object):
 
         resp = await response.json()
 
+        output_folder = Path(
+            settings.BASE_DIR / "order_report_json_data" / user["username"]
+        )
+        output_folder.mkdir(parents=True, exist_ok=True)
+
+        with open(output_folder / f"{timezone.localdate()}.json", "w") as json_file:
+            json.dump(resp["data"], json_file, indent=4)
+
         if resp.get("stat") == "Ok":
             data = []
 
@@ -392,7 +404,7 @@ class KotakNeoApi(object):
                         "tag": row["GuiOrdId"],
                     }
                 )
-            return data
+
         elif resp.get("errMsg") == "No Data":
             return []
 
@@ -421,6 +433,14 @@ class KotakNeoApi(object):
         )
 
         resp = await response.json()
+
+        output_folder = Path(
+            settings.BASE_DIR / "trade_report_json_data" / user["username"]
+        )
+        output_folder.mkdir(parents=True, exist_ok=True)
+
+        with open(output_folder / f"{timezone.localdate()}.json", "w") as json_file:
+            json.dump(resp["data"], json_file, indent=4)
 
         if resp.get("stat") == "Ok":
             data = []
